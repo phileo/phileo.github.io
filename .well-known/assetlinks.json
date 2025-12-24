@@ -1,0 +1,10 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.odysseydesigns.questrade.questradeclient.android",
+    "sha256_cert_fingerprints": [
+      "7A:FC:09:8E:3A:A8:C0:DD:B2:D5:34:E5:83:90:99:60:8B:35:A9:56:B8:8A:4A:20:91:75:EA:1C:90:02:DB:66"
+    ]
+  }
+}]
