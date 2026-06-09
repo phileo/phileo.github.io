@@ -45,22 +45,40 @@
     const error = params.get("error");
     const content = document.getElementById("content");
 
+    // Build the UI with DOM nodes + textContent rather than innerHTML: `code`,
+    // `error`, and the full query string are untrusted (anyone can craft a URL like
+    // ?error=<img onerror=…>), and this page shares the github.io origin with every
+    // other project hosted there. The target href always starts with the fixed
+    // http://localhost:<port>/callback prefix, so the attacker-controlled query can't
+    // change the scheme; assigning it via the .href property (not HTML) keeps it inert.
+    const el = (tag, text, className) => {
+      const node = document.createElement(tag);
+      if (text != null) node.textContent = text;
+      if (className) node.className = className;
+      return node;
+    };
+
     if (code) {
       // Preserve the full query string (code + any state) on the bounce.
       const target = "http://localhost:" + LOCAL_CALLBACK_PORT + "/callback" + window.location.search;
-      content.innerHTML =
-        '<h1>✅ Authorized</h1>' +
-        '<p>Returning you to the local Questrade MCP CLI…</p>' +
-        '<p><a class="button" href="' + target + '">Continue</a></p>' +
-        '<p class="muted">If nothing happens, make sure the <code>--reauth</code> ' +
-        'command is still running on this machine, then click Continue.</p>';
+      const link = el("a", "Continue", "button");
+      link.href = target;
+      const linkWrap = el("p");
+      linkWrap.appendChild(link);
+      content.replaceChildren(
+        el("h1", "Authorization received"),
+        el("p", "Returning you to the local Questrade MCP CLI to finish…"),
+        linkWrap,
+        el("p", "If nothing happens, make sure the --reauth command is still running on this machine, then click Continue.", "muted"),
+      );
       // Replace (not assign) so this page doesn't linger in history.
       window.location.replace(target);
     } else {
-      content.innerHTML =
-        '<h1 class="error">❌ Authorization failed</h1>' +
-        '<p>' + (error ? error : "No authorization code was returned.") + '</p>' +
-        '<p class="muted">Return to your terminal and run re-authorization again.</p>';
+      content.replaceChildren(
+        el("h1", "❌ Authorization failed", "error"),
+        el("p", error ? error : "No authorization code was returned."),
+        el("p", "Return to your terminal and run re-authorization again.", "muted"),
+      );
     }
   </script>
 </body>
