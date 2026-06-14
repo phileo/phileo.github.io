@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<!--
+  Questrade MCP — OAuth2 relay page (SECOND chain).
+
+  This is a second copy of the relay page for a separate Questrade login (its own
+  Personal App / client_id and its own refresh-token chain — e.g. the "spouse"
+  chain in docs/setup/multi-chain-option-b.md). It is identical to the primary
+  relay page (docs/setup/relay-page/index.html) except for LOCAL_CALLBACK_PORT,
+  so the two --reauth flows use independent loopback ports and never collide.
+
+  Questrade's API Centre rejects localhost redirect URIs, so this static page is
+  registered as the SECOND Personal App's callback. Questrade redirects here with
+  ?code=…; the page bounces that straight to the local CLI's loopback callback,
+  http://localhost:8090/callback, which catches it and completes re-authorization.
+
+  DEPLOY: copy this file to your GitHub Pages repo at
+      <user>.github.io/questrade-mcp-callback-spouse/index.html
+  so it serves at https://<user>.github.io/questrade-mcp-callback-spouse/ — the
+  exact URL registered as the SECOND app's redirect URI and passed via
+  QUESTRADE_OAUTH_REDIRECT_URI for the spouse chain's --reauth run.
+
+  PORT: LOCAL_CALLBACK_PORT below must match the QUESTRADE_OAUTH_PORT you pass for
+  the spouse chain (8090 here, distinct from the primary chain's 8080). If you
+  change one, change the other.
+
+  The top-level navigation from this https page to http://localhost is allowed by
+  browsers (it's a navigation, not a blocked mixed-content subresource). The
+  authorization code is single-use and exchanged immediately by the CLI.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Questrade MCP — Re-authorization</title>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; text-align: center; padding: 3rem 1rem; color: #1a1a1a; }
+    .code { font-family: ui-monospace, monospace; font-size: 1.1rem; background: #f2f2f2; padding: 0.4rem 0.6rem; border-radius: 6px; word-break: break-all; }
+    a.button { display: inline-block; margin-top: 1rem; padding: 0.6rem 1.1rem; background: #0b65c2; color: #fff; border-radius: 8px; text-decoration: none; }
+    .muted { color: #666; font-size: 0.9rem; margin-top: 1.5rem; }
+    .error { color: #b00020; }
+  </style>
+</head>
+<body>
+  <div id="content"><h1>Completing re-authorization…</h1></div>
+
+  <script>
+    // Must match the QUESTRADE_OAUTH_PORT used for the spouse chain (8090 here,
+    // distinct from the primary chain's 8080).
+    const LOCAL_CALLBACK_PORT = 8090;
+
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("code");
+    const error = params.get("error");
+    const content = document.getElementById("content");
+
+    // Build the UI with DOM nodes + textContent rather than innerHTML: `code`,
+    // `error`, and the full query string are untrusted (anyone can craft a URL like
+    // ?error=<img onerror=…>), and this page shares the github.io origin with every
+    // other project hosted there. The target href always starts with the fixed
+    // http://localhost:<port>/callback prefix, so the attacker-controlled query can't
+    // change the scheme; assigning it via the .href property (not HTML) keeps it inert.
+    const el = (tag, text, className) => {
+      const node = document.createElement(tag);
+      if (text != null) node.textContent = text;
+      if (className) node.className = className;
+      return node;
+    };
+
+    if (code) {
+      // Preserve the full query string (code + any state) on the bounce.
+      const target = "http://localhost:" + LOCAL_CALLBACK_PORT + "/callback" + window.location.search;
+      const link = el("a", "Continue", "button");
+      link.href = target;
+      const linkWrap = el("p");
+      linkWrap.appendChild(link);
+      content.replaceChildren(
+        el("h1", "Authorization received"),
+        el("p", "Returning you to the local Questrade MCP CLI to finish…"),
+        linkWrap,
+        el("p", "If nothing happens, make sure the --reauth command is still running on this machine, then click Continue.", "muted"),
+      );
+      // Replace (not assign) so this page doesn't linger in history.
+      window.location.replace(target);
+    } else {
+      content.replaceChildren(
+        el("h1", "❌ Authorization failed", "error"),
+        el("p", error ? error : "No authorization code was returned."),
+        el("p", "Return to your terminal and run re-authorization again.", "muted"),
+      );
+    }
+  </script>
+</body>
+</html>
